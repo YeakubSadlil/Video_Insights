@@ -1,7 +1,6 @@
 import cv2
 import sys
 import easyocr
-import pytesseract
 
 def detect_shot_cuts(video_path):
     cap = cv2.VideoCapture(video_path)
@@ -33,37 +32,39 @@ def detect_shot_cuts(video_path):
     cap.release()
     return shot_counter
 
-def ocr_text_ratio(video_path):
-
-    """ test pytesseract and easyocr performance """
-
+def ocr_text_ratio(video_path, min_confidence=0.5):
     cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        raise FileNotFoundError(f"The video cannot be opened from : {video_path}")
+
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    if total_frames == 0:
+        cap.release()
+        return 0.0
+
+    frames_with_texts = 0
     reader = easyocr.Reader(['en'])
-    for i in range(50):
+
+    while True:
         ret, frame = cap.read()
-        if ret:
+        if not ret: break
 
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            # x, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-            text = pytesseract.image_to_string(gray)
-            text1 = reader.readtext(gray)
-            print(f"text for {i} :", text)
-            for (bbox, text2, confidence) in text1:
-                print(f"Text eocr {i}: {text2}, Confidence: {confidence:.2f}")
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        results = reader.readtext(gray)
+        for _,text,conf in results:
+            if conf >= min_confidence and len(text.strip()) >= 5:   # check only words with min len of 5
+                frames_with_texts += 1
+                break
 
-            cv2.imshow(f"gray {i}", gray)
-            cv2.waitKey(0)
-            cv2.destroyWindow(f"gray {i}")
-            # plt.plot(thresh)
-            # cv2.imshow(f"thresh {i}",thresh)
-            # cv2.waitKey(0)
-            # cv2.destroyWindow(f"thresh {i}")
     cap.release()
+    return frames_with_texts/total_frames
 
 def video_extractor(video_path):
     print("Extracting shot cuts .....")
-    shot_cuts = detect_shot_cuts(video_path)
-    return shot_cuts
+    print(detect_shot_cuts(video_path))
+
+    print("Analyzing OCR .....")
+    print(ocr_text_ratio(video_path,0.5))
 
 if __name__ == "__main__":
 
@@ -74,8 +75,7 @@ if __name__ == "__main__":
     video_path = sys.argv[1]
 
     try:
-        features = video_extractor(video_path)
-        print(features)
+        video_extractor(video_path)
     except Exception as e:
          print(f"error : {e}")
          sys.exit(1)
