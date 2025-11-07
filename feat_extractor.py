@@ -17,7 +17,7 @@ if __name__ == "__main__":
     video_path = sys.argv[1]
 
     try:
-        feature = video_extractor(video_path)
+        features = video_extractor(video_path)
     except Exception as e:
          print(f"error : {e}")
          sys.exit(1)
